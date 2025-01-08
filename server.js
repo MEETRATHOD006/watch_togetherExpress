@@ -5,6 +5,11 @@ const port = process.env.PORT || 3000;
 
 // Middleware to parse JSON bodies
 app.use(express.json());
+app.use(express.static('public'));
+app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self' blob:");
+    next();
+  });
 
 // PostgreSQL connection setup using connection string
 const pool = new Pool({
