@@ -8,8 +8,10 @@ app.use(express.json());
 
 // PostgreSQL connection setup using connection string
 const pool = new Pool({
-  connectionString: 'postgresql://postgres:8594@db.pezdqmellmcmewcvssbv.supabase.co:5432/postgres',
-  ssl: false
+  connectionString: 'postgresql://postgres.pezdqmellmcmewcvssbv:8594@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
+  ssl: {
+    rejectUnauthorized: false // Necessary for Render SSL connection
+  }
 });
 
 // Test the database connection
