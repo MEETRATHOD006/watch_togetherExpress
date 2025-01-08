@@ -24,7 +24,10 @@ pool.connect()
 
 // POST request to create a room
 app.post('/create_room', async (req, res) => {
-  const { room_id, room_name, admin_name } = req.body;
+  // Support both JSON body and query parameters
+  const { room_id, room_name, admin_name } = req.body.room_id
+    ? req.body
+    : req.query;
 
   if (!room_id || !room_name || !admin_name) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -41,6 +44,7 @@ app.post('/create_room', async (req, res) => {
     res.status(500).json({ error: 'Failed to create room' });
   }
 });
+
 
 // Start the server
 app.listen(port, () => {
