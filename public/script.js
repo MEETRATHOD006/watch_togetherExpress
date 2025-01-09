@@ -28,8 +28,14 @@ createRoomConfirmButton.addEventListener("click", async () => {
       "https://watch-togetherexpress.onrender.com/create_room",
       {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `room_id=${encodeURIComponent(roomId)}&room_name=${encodeURIComponent(roomName)}&admin_name=${encodeURIComponent(adminName)}`,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          room_id: roomId,
+          room_name: roomName,
+          admin_name: adminName,
+        }),
       }
     );
 
