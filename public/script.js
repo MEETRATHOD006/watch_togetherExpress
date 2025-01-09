@@ -167,25 +167,21 @@ joinRoomButton.addEventListener("click", async () => {
     joinErrorText.style.display = "block";
     return;
   }
-  const participantName = "someParticipantName";
+  const participantName = generateRandomName();
   try {
-    // Send the join request to the backend
-    const response = await fetch(
-      "https://watch-togetherexpress.onrender.com/join_room",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }, // Send JSON
-        body: JSON.stringify({
-          room_id: roomId,
-          participant_name: participantName,
-        }),
-      }
-    );
+    const response = await fetch("https://watch-togetherexpress.onrender.com/join_room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        room_id: roomId,
+        participant_name: participantName,
+      }),
+    });
 
     // Validate if the response is OK
     if (!response.ok) {
       console.error(`HTTP error! status: ${response.status}`);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`Failed to join room: ${response.status}`);
     }
 
     // Parse JSON response
@@ -267,3 +263,13 @@ function copyToClipboard(text) {
 function generateRoomId() {
   return Math.random().toString(36).substr(2, 9); // Random 9 character ID
 }
+
+function generateRandomName() {
+  const adjectives = ["Quick", "Bright", "Brave", "Calm", "Sharp", "Wise"];
+  const nouns = ["Lion", "Tiger", "Falcon", "Eagle", "Wolf", "Bear"];
+  return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${
+    nouns[Math.floor(Math.random() * nouns.length)]
+  }`;
+}
+
+
