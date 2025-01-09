@@ -240,6 +240,7 @@ async function captureUserVideo(roomId) {
     videoElement.srcObject = stream;
     videoElement.autoplay = true;
     videoElement.id = `participantVideo_${roomId}`;
+    videoElement.class = "participantVideo";
 
     // Append the participant video element
     const displayVideoCalls = document.getElementById("displayvideocalls");
