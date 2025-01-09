@@ -174,8 +174,11 @@ joinRoomButton.addEventListener("click", async () => {
       "https://watch-togetherexpress.onrender.com/join_room",
       {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `room_id=${encodeURIComponent(roomId)}`,
+        headers: { "Content-Type": "application/json" }, // Send JSON
+        body: JSON.stringify({
+          room_id: roomId,
+          participant_name: participantName,
+        }),
       }
     );
 
