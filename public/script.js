@@ -54,8 +54,9 @@ createRoomConfirmButton.addEventListener("click", async () => {
       return;
     }
 
-    if (data.status === "success") {
-      updateUIAfterRoomCreation(roomId);
+    // Check for success based on the actual response structure
+    if (data.message === "Room created successfully") {
+      updateUIAfterRoomCreation(data.data.room_id); // Use the room_id from the response
       alert("Room created successfully!");
     } else {
       console.error("Failed to create room:", data.message);
@@ -66,6 +67,7 @@ createRoomConfirmButton.addEventListener("click", async () => {
     alert("An error occurred while creating the room. Please try again.");
   }
 });
+
 
 
 /**
