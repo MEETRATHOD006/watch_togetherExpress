@@ -1,5 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg'); // PostgreSQL library
+const bodyParser = require('body-parser');
+const { joinRoom } = require('./joinRoomHandler');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -50,6 +52,8 @@ app.post('/create_room', async (req, res) => {
   }
 });
 
+// POST request to join a room
+app.post('/join_room', joinRoom);
 
 // Start the server
 app.listen(port, () => {
