@@ -24,6 +24,7 @@ createRoomConfirmButton.addEventListener("click", async () => {
   const roomId = generateRoomId();
 
   try {
+    // Send the data as JSON
     const response = await fetch(
       "https://watch-togetherexpress.onrender.com/create_room",
       {
@@ -65,6 +66,7 @@ createRoomConfirmButton.addEventListener("click", async () => {
     alert("An error occurred while creating the room. Please try again.");
   }
 });
+
 
 /**
  * Update UI after room creation
