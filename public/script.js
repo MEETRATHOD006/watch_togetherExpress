@@ -167,7 +167,7 @@ joinRoomButton.addEventListener("click", async () => {
     joinErrorText.style.display = "block";
     return;
   }
-
+  const participantName = "someParticipantName";
   try {
     // Send the join request to the backend
     const response = await fetch(
