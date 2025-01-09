@@ -186,7 +186,7 @@ joinRoomButton.addEventListener("click", async () => {
 
     // Parse JSON response
     const data = await response.json();
-
+    console.log(data.statuse);
     if (data.status === "success") {
       // Replace Create/Join buttons with the Room ID display and copy icon
       const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
