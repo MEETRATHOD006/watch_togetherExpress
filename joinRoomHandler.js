@@ -59,6 +59,6 @@ async function joinRoom(req, res) {
   console.error('Error joining room:', err.message);
   res.status(500).json({ error: 'An unexpected error occurred' });
 }
-
+}
 
 module.exports = { joinRoom };
