@@ -171,7 +171,7 @@ joinRoomButton.addEventListener("click", async () => {
   try {
     // Send the join request to the backend
     const response = await fetch(
-      "http://localhost/watch-together/Backend/join_room.php",
+      "https://watch-togetherexpress.onrender.com/join_room",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
