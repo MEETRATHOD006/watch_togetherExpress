@@ -42,8 +42,8 @@ app.post('/create_room', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO rooms (room_id, room_name, admin_name) VALUES ($1, $2, $3) RETURNING *',
-      [room_id, room_name, admin_name]
+      'INSERT INTO rooms (room_id, room_name, admin_name, participants) VALUES ($1, $2, $3, $4) RETURNING *',
+      [room_id, room_name, admin_name, JSON.stringify([])]
     );
     res.status(200).json({ message: 'Room created successfully', data: result.rows[0] });
   } catch (err) {
