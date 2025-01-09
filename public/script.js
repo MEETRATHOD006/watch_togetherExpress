@@ -211,6 +211,9 @@ joinRoomButton.addEventListener("click", async () => {
             });
         });
 
+      // Capture user's video and display
+      captureUserVideo(roomId);
+
       // Close the join room popup
       joinPopup.style.display = "none";
       joinRoomIdInput.value = ""; // Clear the input field
@@ -226,6 +229,28 @@ joinRoomButton.addEventListener("click", async () => {
     joinErrorText.style.display = "block";
   }
 });
+
+// Capture User Video and Add to Room
+async function captureUserVideo(roomId) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+    // Create video element for the participant
+    const videoElement = document.createElement("video");
+    videoElement.srcObject = stream;
+    videoElement.autoplay = true;
+    videoElement.id = `participantVideo_${roomId}`;
+
+    // Append the participant video element
+    const displayVideoCalls = document.getElementById("displayvideocalls");
+    const participantsDiv = document.createElement("div");
+    participantsDiv.classList.add("individualsVideo");
+    participantsDiv.appendChild(videoElement);
+    displayVideoCalls.appendChild(participantsDiv);
+  } catch (error) {
+    console.error("Error accessing the camera: ", error);
+  }
+}
 
 // 📌 Utility Function: Copy to Clipboard
 function copyToClipboard(text) {
