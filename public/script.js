@@ -1,11 +1,8 @@
-// 📌 CREATE ROOM EVENT LISTENER (Unchanged)
-
+// 📌 CREATE ROOM EVENT LISTENER
 const createRoomButton = document.getElementById("create");
 const createRoomPopup = document.getElementById("createRoomPopup");
 const createRoomConfirmButton = document.getElementById("createRoomConfirm");
-const closeCreateRoomPopupButton = document.getElementById(
-  "closeCreateRoomPopup"
-);
+const closeCreateRoomPopupButton = document.getElementById("closeCreateRoomPopup");
 
 // Show Room Creation Popup
 createRoomButton.addEventListener("click", () => {
@@ -101,7 +98,6 @@ function updateUIAfterRoomCreation(roomId) {
   document.getElementById("adminName").value = "";
 }
 
-
 closeCreateRoomPopupButton.addEventListener("click", () => {
   createRoomPopup.style.display = "none"; // Close the create room popup
   document.getElementById("roomName").value = "";
@@ -122,8 +118,7 @@ async function captureAdminVideo() {
 
     // Find the individualsVideo div inside the displayvideocalls div
     const displayVideoCalls = document.getElementById("displayvideocalls");
-    const individualsVideoDiv =
-      displayVideoCalls.querySelector(".individualsVideo");
+    const individualsVideoDiv = displayVideoCalls.querySelector(".individualsVideo");
 
     // Append the video element to the individualsVideo div
     individualsVideoDiv.appendChild(videoElement);
@@ -140,8 +135,6 @@ const joinRoomButton = document.getElementById("joinRoom");
 const joinRoomIdInput = document.getElementById("joinRoomId");
 const joinErrorText = document.getElementById("joinError");
 
-// Show Join Popup
-// Show Join Popup
 // Show Join Popup
 joinButton.addEventListener("click", () => {
   joinPopup.style.display = "block";
@@ -232,6 +225,7 @@ function copyToClipboard(text) {
     .catch((err) => console.error("Error copying text:", err));
 }
 
+// 📌 Generate Random Room ID
 function generateRoomId() {
   return Math.random().toString(36).substr(2, 9); // Random 9 character ID
 }
