@@ -5,6 +5,12 @@ const { joinRoom } = require('./joinRoomHandler');
 const app = express();
 const port = process.env.PORT || 3000;
 
+const { Server } = require("socket.io");
+const http = require("http");
+
+const server = http.createServer(app); // Wrap express app with HTTP server
+const io = new Server(server); // Attach Socket.IO to HTTP server
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(express.static('public'));
@@ -54,6 +60,29 @@ app.post('/create_room', async (req, res) => {
 
 // POST request to join a room
 app.post('/join_room', joinRoom);
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  // Handle joining a room
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId); // User joins the room
+    console.log(`User ${socket.id} joined room: ${roomId}`);
+    socket.to(roomId).emit("user-connected", socket.id); // Notify others in the room
+  });
+
+  // Handle signaling messages
+  socket.on("signal", ({ roomId, data }) => {
+    socket.to(roomId).emit("signal", data); // Relay signaling data to other participants
+  });
+
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    io.emit("user-disconnected", socket.id); // Notify all clients
+  });
+});
+
 
 // Start the server
 app.listen(port, () => {
