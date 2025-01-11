@@ -125,7 +125,7 @@ io.on("connection", (socket) => {
     }
 
     room.participants.push(participant_name);
-    await db.updateParticipants(room_id, room.participants.join(","));
+    await db.updateParticipants(room_id, room.participants.join);
     users[socket.id] = { room_id, participant_name };
 
     socket.join(room_id);
@@ -143,7 +143,7 @@ io.on("connection", (socket) => {
 
     // Update participants in memory and database
     room.participants = room.participants.filter((name) => name !== participant_name);
-    await db.updateParticipants(room_id, room.participants.join(","));
+    await db.updateParticipants(room_id, room.participants);
     delete users[socket.id];
 
     if (room.participants.length === 0) {
