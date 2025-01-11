@@ -70,42 +70,93 @@ app.post('/create_room', async (req, res) => {
 // POST request to join a room
 app.post('/join_room', joinRoom);
 
+// In-memory storage for real-time performance
+const rooms = {};
+const users = {};
+
+// Load rooms from database on startup
+async function loadRoomsFromDatabase() {
+  const dbRooms = await db.getAllRooms(); // Fetch from database
+  dbRooms.forEach((room) => {
+    rooms[room.room_id] = { 
+      room_name: room.room_name, 
+      admin_name: room.admin_name, 
+      participants: room.participants.split(",") // Assuming participants are stored as a comma-separated string
+    };
+  });
+}
+
+// Socket.IO connections
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Handle room creation
-  socket.on("create_room", ({ room_id, room_name, admin_name }) => {
-    socket.join(room_id); // Admin joins the room
-    console.log(`Room created: ${room_id} by admin ${admin_name}`);
-
-    // Notify the client that the room was created
-    socket.emit("room_created", { success: true, room_id, room_name, admin_name });
-  });
-
-  // Handle joining a room
-  socket.on("join_room", ({ room_id, participant_name }) => {
-    if (!io.sockets.adapter.rooms.get(room_id)) {
-      // Room doesn't exist
-      socket.emit("room_joined", { success: false, error: "Room does not exist." });
+  socket.on("create_room", async ({ room_id, room_name, admin_name }) => {
+    if (rooms[room_id]) {
+      socket.emit("room_created", { success: false, error: "Room already exists." });
       return;
     }
 
-    socket.join(room_id); // User joins the room
-    console.log(`User ${socket.id} (${participant_name}) joined room: ${room_id}`);
+    // Add to database and memory
+    await db.createRoom({ room_id, room_name, admin_name, participants: admin_name });
+    rooms[room_id] = { room_name, admin_name, participants: [admin_name] };
+    users[socket.id] = { room_id, participant_name: admin_name };
 
-    // Notify the client
-    socket.emit("room_joined", { success: true, room_id });
+    socket.join(room_id);
+    socket.emit("room_created", { success: true, room_id, room_name, admin_name });
   });
 
-  // Handle disconnection
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+  socket.on("join_room", async ({ room_id, participant_name }) => {
+    let room = rooms[room_id];
+
+    if (!room) {
+      const dbRoom = await db.getRoomById(room_id);
+      if (!dbRoom) {
+        socket.emit("room_joined", { success: false, error: "Room does not exist." });
+        return;
+      }
+      // Add room to memory
+      rooms[room_id] = { 
+        room_name: dbRoom.room_name, 
+        admin_name: dbRoom.admin_name, 
+        participants: dbRoom.participants.split(",") 
+      };
+      room = rooms[room_id];
+    }
+
+    room.participants.push(participant_name);
+    await db.updateParticipants(room_id, room.participants.join(","));
+    users[socket.id] = { room_id, participant_name };
+
+    socket.join(room_id);
+    socket.emit("room_joined", { success: true, room_id, room_name: room.room_name });
+    socket.to(room_id).emit("room_update", { participants: room.participants });
+  });
+
+  socket.on("disconnect", async () => {
+    const user = users[socket.id];
+    if (!user) return;
+
+    const { room_id, participant_name } = user;
+    const room = rooms[room_id];
+    if (!room) return;
+
+    // Update participants in memory and database
+    room.participants = room.participants.filter((name) => name !== participant_name);
+    await db.updateParticipants(room_id, room.participants.join(","));
+    delete users[socket.id];
+
+    if (room.participants.length === 0) {
+      await db.deleteRoom(room_id); // Clean up empty room
+      delete rooms[room_id];
+    }
+
+    socket.to(room_id).emit("room_update", { participants: room.participants });
   });
 });
 
-
-// Start the server
-server.listen(port, () => {
+// Start server and load rooms
+server.listen(port, async () => {
+  await loadRoomsFromDatabase();
   console.log(`Server running on http://localhost:${port}`);
 });
 // Start the server
