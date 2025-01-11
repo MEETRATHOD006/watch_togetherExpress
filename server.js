@@ -73,26 +73,36 @@ app.post('/join_room', joinRoom);
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Handle joining a room
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId); // User joins the room
-    console.log(`User ${socket.id} joined room: ${roomId}`);
-    socket.to(roomId).emit("user-connected", socket.id); // Notify others in the room
+  // Handle room creation
+  socket.on("create_room", ({ room_id, room_name, admin_name }) => {
+    socket.join(room_id); // Admin joins the room
+    console.log(`Room created: ${room_id} by admin ${admin_name}`);
 
-    socket.emit("room_joined", { success: true, room_id: roomId });
+    // Notify the client that the room was created
+    socket.emit("room_created", { success: true, room_id, room_name, admin_name });
   });
 
-  // Handle signaling messages
-  socket.on("signal", ({ roomId, data }) => {
-    socket.to(roomId).emit("signal", data); // Relay signaling data to other participants
+  // Handle joining a room
+  socket.on("join_room", ({ room_id, participant_name }) => {
+    if (!io.sockets.adapter.rooms.get(room_id)) {
+      // Room doesn't exist
+      socket.emit("room_joined", { success: false, error: "Room does not exist." });
+      return;
+    }
+
+    socket.join(room_id); // User joins the room
+    console.log(`User ${socket.id} (${participant_name}) joined room: ${room_id}`);
+
+    // Notify the client
+    socket.emit("room_joined", { success: true, room_id });
   });
 
   // Handle disconnection
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    io.emit("user-disconnected", socket.id); // Notify all clients
   });
 });
+
 
 // Start the server
 server.listen(port, () => {
