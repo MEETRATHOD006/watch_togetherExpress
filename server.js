@@ -125,7 +125,7 @@ io.on("connection", (socket) => {
     }
 
     room.participants.push(participant_name);
-    await db.updateParticipants(room_id, room.participants);
+    await db.updateParticipants(room_id, JSON.stringify(room.participants));
     users[socket.id] = { room_id, participant_name };
 
     socket.join(room_id);
