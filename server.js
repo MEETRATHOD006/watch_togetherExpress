@@ -82,7 +82,7 @@ async function loadRoomsFromDatabase() {
     rooms[room.room_id] = { 
       room_name: room.room_name, 
       admin_name: room.admin_name, 
-      participants: room.participants.split(",") // Assuming participants are stored as a comma-separated string
+      participants: room.participants || [] // Use JSON array directly
     };
   });
 }
