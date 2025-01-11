@@ -27,7 +27,10 @@ function displayLocalVideo(stream) {
   videoElement.muted = true;
   videoElement.classList.add("localVideo");
   const displayVideoCalls = document.getElementById("displayvideocalls");
-  displayVideoCalls.appendChild(videoElement);
+  const individualVideoDiv = document.createElement("div");
+  individualVideoDiv.classList.add("individualsVideo");
+  displayVideoCalls.appendChild(individualVideoDiv);
+  individualVideoDiv.appendChild(videoElement);
 }
 
 // 📌 CREATE ROOM EVENT LISTENER
