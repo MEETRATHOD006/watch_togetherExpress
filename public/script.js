@@ -1,10 +1,34 @@
 // Import Socket.IO client
 const socket = io("https://watch-togetherexpress.onrender.com"); // Update the URL as per your server
 
+const peers = {}; // Store peer connections
+let localStream; // Store the local video stream
+
 // Connection established
 socket.on("connect", () => {
   console.log("Connected to Socket.IO server with ID:", socket.id);
 });
+
+// Capture Local Video Stream
+async function captureLocalVideo() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    displayLocalVideo(localStream);
+  } catch (error) {
+    console.error("Error accessing the camera or microphone: ", error);
+  }
+}
+
+// Display Local Video
+function displayLocalVideo(stream) {
+  const videoElement = document.createElement("video");
+  videoElement.srcObject = stream;
+  videoElement.autoplay = true;
+  videoElement.muted = true;
+  videoElement.classList.add("localVideo");
+  const displayVideoCalls = document.getElementById("displayvideocalls");
+  displayVideoCalls.appendChild(videoElement);
+}
 
 // 📌 CREATE ROOM EVENT LISTENER
 const createRoomButton = document.getElementById("create");
@@ -69,6 +93,7 @@ createRoomConfirmButton.addEventListener("click", async () => {
       socket.on("room_created", (serverResponse) => {
         if (serverResponse.success) {
           updateUIAfterRoomCreation(serverResponse.room_id);
+          captureLocalVideo();
           alert("Room created successfully!");
         } else {
           alert("Failed to create room: " + serverResponse.error);
@@ -106,7 +131,7 @@ function updateUIAfterRoomCreation(roomId) {
   `;
 
   // Admin Video Capture
-  captureAdminVideo();
+  // captureAdminVideo();
 
   // Enable copying Room ID
   document.getElementById("copyRoomId").addEventListener("click", () => {
@@ -236,7 +261,8 @@ joinRoomButton.addEventListener("click", async () => {
             });
     
           // Capture user's video and display
-          captureUserVideo(roomId);
+          captureLocalVideo(); // Capture participant's video
+          // captureUserVideo(roomId);
     
           // Close the join room popup
           joinPopup.style.display = "none";
@@ -288,6 +314,62 @@ function copyToClipboard(text) {
     .writeText(text)
     .then(() => alert("Room ID copied to clipboard!"))
     .catch((err) => console.error("Error copying text:", err));
+}
+
+// WebRTC Signaling
+socket.on("offer", async ({ from, offer }) => {
+  const peerConnection = createPeerConnection(from);
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  socket.emit("answer", { to: from, answer });
+});
+
+socket.on("answer", async ({ from, answer }) => {
+  if (peers[from]) {
+    await peers[from].setRemoteDescription(new RTCSessionDescription(answer));
+  }
+});
+
+socket.on("ice-candidate", ({ from, candidate }) => {
+  if (peers[from]) {
+    peers[from].addIceCandidate(new RTCIceCandidate(candidate));
+  }
+});
+
+// Create a new PeerConnection
+function createPeerConnection(peerId) {
+  const peerConnection = new RTCPeerConnection();
+  peers[peerId] = peerConnection;
+
+  // Add local stream tracks to peer connection
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+
+  // Listen for remote streams
+  peerConnection.ontrack = (event) => {
+    const remoteStream = event.streams[0];
+    displayRemoteVideo(peerId, remoteStream);
+  };
+
+  // Handle ICE candidates
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit("ice-candidate", { to: peerId, candidate: event.candidate });
+    }
+  };
+
+  return peerConnection;
+}
+
+// Display Remote Video
+function displayRemoteVideo(peerId, stream) {
+  const videoElement = document.createElement("video");
+  videoElement.srcObject = stream;
+  videoElement.autoplay = true;
+  videoElement.classList.add("remoteVideo");
+  videoElement.setAttribute("data-peer-id", peerId);
+  const displayVideoCalls = document.getElementById("displayvideocalls");
+  displayVideoCalls.appendChild(videoElement);
 }
 
 // 📌 Generate Random Room ID
