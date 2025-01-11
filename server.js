@@ -3,6 +3,7 @@ const { Pool } = require('pg'); // PostgreSQL library
 const bodyParser = require('body-parser');
 const { joinRoom } = require('./joinRoomHandler');
 const path = require('path');
+const db = require('./db');
 const app = express();
 const port = process.env.PORT || 3000;
 
