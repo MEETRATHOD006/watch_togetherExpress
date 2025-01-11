@@ -200,6 +200,18 @@ closePopupButton.addEventListener("click", () => {
   joinRoomIdInput.value = "";
 });
 
+function waitForRoomJoinResponse(socket) {
+  return new Promise((resolve, reject) => {
+    socket.on("room_joined", (serverResponse) => {
+      if (serverResponse.success) {
+        resolve(serverResponse); // Resolve the Promise with the server response if successful
+      } else {
+        reject(new Error(serverResponse.error || "Failed to join the room"));
+      }
+    });
+  });
+}
+
 // Handle Room Joining
 joinRoomButton.addEventListener("click", async () => {
   const roomId = joinRoomIdInput.value.trim();
@@ -235,7 +247,7 @@ joinRoomButton.addEventListener("click", async () => {
 
       // Notify others via Socket.IO
       socket.emit("join_room", { room_id: roomId, participant_name: participantName });
-
+      const serverResponse = await waitForRoomJoinResponse(socket);
       socket.on("room_joined", (serverResponse) => {
         if (serverResponse.success) { 
           // Replace Create/Join buttons with the Room ID display and copy icon
