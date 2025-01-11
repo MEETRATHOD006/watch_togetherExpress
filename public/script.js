@@ -1,5 +1,5 @@
 // Import Socket.IO client
-const socket = io(); // Update the URL as per your server
+const socket = io("https://watch-togetherexpress.onrender.com"); // Update the URL as per your server
 
 // Connection established
 socket.on("connect", () => {
