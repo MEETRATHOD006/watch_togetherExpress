@@ -1,3 +1,11 @@
+// Import Socket.IO client
+const socket = io("https://watch-togetherexpress.onrender.com"); // Update the URL as per your server
+
+// Connection established
+socket.on("connect", () => {
+  console.log("Connected to Socket.IO server with ID:", socket.id);
+});
+
 // 📌 CREATE ROOM EVENT LISTENER
 const createRoomButton = document.getElementById("create");
 const createRoomPopup = document.getElementById("createRoomPopup");
@@ -56,8 +64,18 @@ createRoomConfirmButton.addEventListener("click", async () => {
 
     // Check for success based on the actual response structure
     if (data.message === "Room created successfully") {
-      updateUIAfterRoomCreation(data.data.room_id); // Use the room_id from the response
-      alert("Room created successfully!");
+      // Notify other clients via Socket.IO
+      socket.emit("create_room", { room_id: roomId, room_name: roomName, admin_name: adminName });
+      socket.on("room_created", (serverResponse) => {
+        if (serverResponse.success) {
+          updateUIAfterRoomCreation(serverResponse.room_id);
+          alert("Room created successfully!");
+        } else {
+          alert("Failed to create room: " + serverResponse.error);
+        }
+      });
+      //updateUIAfterRoomCreation(data.data.room_id); // Use the room_id from the response
+      //alert("Room created successfully!");
     } else {
       console.error("Failed to create room:", data.message);
       alert("Failed to create room: " + data.message);
@@ -189,34 +207,45 @@ joinRoomButton.addEventListener("click", async () => {
     console.log("Parsed Response:", data, data.status);
 
     if (data.message === "Joined room successfully") {
-      // Replace Create/Join buttons with the Room ID display and copy icon
-      const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
-      createJoinBtnDiv.innerHTML = `
-        <span id="roomIdDisplay">Room ID: ${roomId}</span>
-        <i class="fa-solid fa-copy" id="copyRoomId" style="cursor: pointer; color: yellow;"></i>
-      `;
 
-      // Listen for copy icon click to copy the room ID
-      document
-        .getElementById("copyRoomId")
-        .addEventListener("click", function () {
-          // Copy the room ID to the clipboard
-          navigator.clipboard
-            .writeText(roomId)
-            .then(function () {
-              alert("Room ID copied to clipboard!");
-            })
-            .catch(function (err) {
-              console.error("Error copying text: ", err);
+      // Notify others via Socket.IO
+      socket.emit("join_room", { room_id: roomId, participant_name: participantName });
+
+      socket.on("room_joined", (serverResponse) => {
+        if (serverResponse.success) { 
+          // Replace Create/Join buttons with the Room ID display and copy icon
+          const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
+          createJoinBtnDiv.innerHTML = `
+            <span id="roomIdDisplay">Room ID: ${roomId}</span>
+            <i class="fa-solid fa-copy" id="copyRoomId" style="cursor: pointer; color: yellow;"></i>
+          `;
+    
+          // Listen for copy icon click to copy the room ID
+          document
+            .getElementById("copyRoomId")
+            .addEventListener("click", function () {
+              // Copy the room ID to the clipboard
+              navigator.clipboard
+                .writeText(roomId)
+                .then(function () {
+                  alert("Room ID copied to clipboard!");
+                })
+                .catch(function (err) {
+                  console.error("Error copying text: ", err);
+                });
             });
+    
+          // Capture user's video and display
+          captureUserVideo(roomId);
+    
+          // Close the join room popup
+          joinPopup.style.display = "none";
+          joinRoomIdInput.value = ""; // Clear the input field
+        } else {
+          joinErrorText.textContent = serverResponse.error || "Failed to join the room.";
+          joinErrorText.style.display = "block";
+        }
         });
-
-      // Capture user's video and display
-      captureUserVideo(roomId);
-
-      // Close the join room popup
-      joinPopup.style.display = "none";
-      joinRoomIdInput.value = ""; // Clear the input field
     } else {
       // Handle backend validation error
       joinErrorText.textContent = data.message || "Failed to join the room.";
