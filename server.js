@@ -74,10 +74,12 @@ io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
   // Handle joining a room
-  socket.on("join_room", (roomId) => {
+  socket.on("join-room", (roomId) => {
     socket.join(roomId); // User joins the room
     console.log(`User ${socket.id} joined room: ${roomId}`);
     socket.to(roomId).emit("user-connected", socket.id); // Notify others in the room
+
+    socket.emit("room_joined", { success: true, room_id: roomId });
   });
 
   // Handle signaling messages
