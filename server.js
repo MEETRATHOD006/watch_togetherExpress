@@ -10,7 +10,14 @@ const { Server } = require("socket.io");
 const http = require("http");
 
 const server = http.createServer(app); // Wrap express app with HTTP server
-const io = require('socket.io')(server); // Attach Socket.IO to HTTP server
+// Adjust to your client domain if needed
+const io = new Server(server, {
+  cors: {
+    origin: "*", 
+    methods: ["GET", "POST"]
+  }
+}); // Attach Socket.IO to HTTP server
+
 app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
 
 // Middleware to parse JSON bodies
@@ -85,7 +92,10 @@ io.on("connection", (socket) => {
   });
 });
 
-
+// Start the server
+server.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
