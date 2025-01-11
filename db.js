@@ -23,7 +23,7 @@ const db = {
     );
   },
   updateParticipants: async (room_id, participants) => {
-    await pool.query('UPDATE rooms SET participants = $1 WHERE room_id = $2', [participants, room_id]);
+    await pool.query('UPDATE rooms SET participants = $1 WHERE room_id = $2', [JSON.stringify(room.participants), room_id]);
   },
   deleteRoom: async (room_id) => {
     await pool.query('DELETE FROM rooms WHERE room_id = $1', [room_id]);
