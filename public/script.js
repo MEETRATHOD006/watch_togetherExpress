@@ -121,10 +121,10 @@ createRoomConfirmButton.addEventListener("click", async () => {
  */
 function updateUIAfterRoomCreation(roomId) {
   // Update video calls display
-  const displayVideoCalls = document.getElementById("displayvideocalls");
-  const individualVideoDiv = document.createElement("div");
-  individualVideoDiv.classList.add("individualsVideo");
-  displayVideoCalls.appendChild(individualVideoDiv);
+  // const displayVideoCalls = document.getElementById("displayvideocalls");
+  // const individualVideoDiv = document.createElement("div");
+  // individualVideoDiv.classList.add("individualsVideo");
+  // displayVideoCalls.appendChild(individualVideoDiv);
 
   // Replace buttons with room details
   const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
