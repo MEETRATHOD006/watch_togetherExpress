@@ -9,7 +9,8 @@ const { Server } = require("socket.io");
 const http = require("http");
 
 const server = http.createServer(app); // Wrap express app with HTTP server
-const io = new Server(server); // Attach Socket.IO to HTTP server
+const io = require('socket.io')(server); // Attach Socket.IO to HTTP server
+app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
