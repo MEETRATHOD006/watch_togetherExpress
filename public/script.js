@@ -203,6 +203,24 @@ closePopupButton.addEventListener("click", () => {
   joinRoomIdInput.value = "";
 });
 
+// Join room
+async function joinRoom(roomId) {
+  await captureLocalVideo();
+  socket.emit("join-room", { roomId });
+
+  socket.on("participants", (participants) => {
+    participants.forEach((peerId) => {
+      if (peerId !== socket.id) {
+        const peerConnection = createPeerConnection(peerId);
+        peers[peerId] = peerConnection;
+
+        // Add local tracks to connection
+        localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+      }
+    });
+  });
+}
+
 // Handle Room Joining
 joinRoomButton.addEventListener("click", async () => {
   const roomId = joinRoomIdInput.value.trim();
@@ -264,7 +282,7 @@ joinRoomButton.addEventListener("click", async () => {
             });
     
           // Capture user's video and display
-          captureLocalVideo(); // Capture participant's video
+          joinRoom(roomId); // Capture participant's video
           // captureUserVideo(roomId);
     
           // Close the join room popup
@@ -319,60 +337,82 @@ function copyToClipboard(text) {
     .catch((err) => console.error("Error copying text:", err));
 }
 
-// WebRTC Signaling
-socket.on("offer", async ({ from, offer }) => {
-  const peerConnection = createPeerConnection(from);
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
-  socket.emit("answer", { to: from, answer });
-});
-
-socket.on("answer", async ({ from, answer }) => {
-  if (peers[from]) {
-    await peers[from].setRemoteDescription(new RTCSessionDescription(answer));
-  }
-});
-
-socket.on("ice-candidate", ({ from, candidate }) => {
-  if (peers[from]) {
-    peers[from].addIceCandidate(new RTCIceCandidate(candidate));
-  }
-});
-
-// Create a new PeerConnection
-function createPeerConnection(peerId) {
-  const peerConnection = new RTCPeerConnection();
-  peers[peerId] = peerConnection;
-
-  // Add local stream tracks to peer connection
-  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
-
-  // Listen for remote streams
-  peerConnection.ontrack = (event) => {
-    const remoteStream = event.streams[0];
-    displayRemoteVideo(peerId, remoteStream);
-  };
-
-  // Handle ICE candidates
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate) {
-      socket.emit("ice-candidate", { to: peerId, candidate: event.candidate });
-    }
-  };
-
-  return peerConnection;
-}
-
-// Display Remote Video
-function displayRemoteVideo(peerId, stream) {
+// Add remote video to the UI
+function addRemoteVideo(peerId, stream) {
   const videoElement = document.createElement("video");
   videoElement.srcObject = stream;
   videoElement.autoplay = true;
-  videoElement.classList.add("remoteVideo");
-  videoElement.setAttribute("data-peer-id", peerId);
+  videoElement.id = `remoteVideo_${peerId}`;
   const displayVideoCalls = document.getElementById("displayvideocalls");
-  displayVideoCalls.appendChild(videoElement);
+  const individualVideoDiv = document.createElement("div");
+  individualVideoDiv.classList.add("individualsVideo");
+  individualVideoDiv.appendChild(videoElement);
+  displayVideoCalls.appendChild(individualVideoDiv);
+}
+
+// Handle new participant joining
+socket.on("new-participant", ({ peerId }) => {
+  const peerConnection = createPeerConnection(peerId);
+  peers[peerId] = peerConnection;
+
+  // Add local tracks to the connection
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+
+  // Create and send offer
+  peerConnection.createOffer()
+    .then((offer) => {
+      peerConnection.setLocalDescription(offer);
+      socket.emit("offer", { peerId, offer });
+    })
+    .catch((error) => console.error("Error creating offer:", error));
+});
+
+// Handle offer received
+socket.on("offer", ({ peerId, offer }) => {
+  const peerConnection = createPeerConnection(peerId);
+  peers[peerId] = peerConnection;
+
+  // Set remote description and create answer
+  peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+    .then(() => peerConnection.createAnswer())
+    .then((answer) => {
+      peerConnection.setLocalDescription(answer);
+      socket.emit("answer", { peerId, answer });
+    })
+    .catch((error) => console.error("Error handling offer:", error));
+});
+
+// Handle answer received
+socket.on("answer", ({ peerId, answer }) => {
+  const peerConnection = peers[peerId];
+  peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+});
+
+// Handle ICE candidate received
+socket.on("ice-candidate", ({ peerId, candidate }) => {
+  const peerConnection = peers[peerId];
+  peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    .catch((error) => console.error("Error adding ICE candidate:", error));
+});
+
+// Create and manage peer connection
+function createPeerConnection(peerId) {
+  const peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }], // Use Google's public STUN server
+  });
+
+  // Add event listeners
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit("ice-candidate", { peerId, candidate: event.candidate });
+    }
+  };
+
+  peerConnection.ontrack = (event) => {
+    addRemoteVideo(peerId, event.streams[0]);
+  };
+
+  return peerConnection;
 }
 
 // 📌 Generate Random Room ID
