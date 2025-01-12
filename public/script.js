@@ -1,5 +1,6 @@
 // Import Socket.IO client
 const socket = io("https://watch-togetherexpress.onrender.com"); // Update the URL as per your server
+import Peer from "peerjs";
 const peer = new Peer();
 
 const peers = {}; // Store peer connections
