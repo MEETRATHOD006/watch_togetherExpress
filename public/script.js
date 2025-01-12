@@ -133,7 +133,7 @@ closePopupButton.addEventListener("click", () => {
 // Join Room
 async function joinRoom(roomId) {
   await captureLocalVideo();
-  socket.emit("join-room", { roomId });
+  socket.emit("join_room", { roomId });
 
   socket.on("participants", (participants) => {
     participants.forEach((peerId) => {
