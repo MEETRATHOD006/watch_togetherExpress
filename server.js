@@ -117,7 +117,6 @@ io.on("connection", (socket) => {
     socket.join(room_id);
     socket.emit("room_joined", { success: true, room_id, room_name: room.room_name });
     socket.to(room_id).emit("room_update", { participants: room.participants });
-    socket.to(room_id).broadcast.emit("User-connected", participant_name);
   });
 
   // WebRTC signaling events
