@@ -47,8 +47,6 @@ createRoomButton.addEventListener("click", () => {
 // Confirm Room Creation
 createRoomConfirmButton.addEventListener("click", createRoom);
 
-
-
 /**
  * Update UI after room creation
  */
@@ -59,9 +57,6 @@ function updateUIAfterRoomCreation(roomId) {
     <span id="roomIdDisplay">Room ID: ${roomId}</span>
     <i class="fa-solid fa-copy" id="copyRoomId" style="cursor: pointer; color: yellow;"></i>
   `;
-
-  // Admin Video Capture
-  // captureAdminVideo();
 
   // Enable copying Room ID
   document.getElementById("copyRoomId").addEventListener("click", () => {
@@ -87,28 +82,6 @@ closeCreateRoomPopupButton.addEventListener("click", () => {
   document.getElementById("adminName").value = "";
 });
 
-async function captureAdminVideo() {
-  try {
-    // Accessing the user's camera
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-    // Create a video element
-    const videoElement = document.createElement("video");
-    videoElement.id = "adminVideo"; // Optional: Set an ID for the video element
-    videoElement.srcObject = stream;
-    videoElement.autoplay = true; // Play video automatically
-    videoElement.muted = true; // Mute the video for the admin (optional)
-
-    // Find the individualsVideo div inside the displayvideocalls div
-    const displayVideoCalls = document.getElementById("displayvideocalls");
-    const individualsVideoDiv = displayVideoCalls.querySelector(".individualsVideo");
-
-    // Append the video element to the individualsVideo div
-    individualsVideoDiv.appendChild(videoElement);
-  } catch (error) {
-    console.error("Error accessing the camera: ", error);
-  }
-}
 
 // 📌 JOIN ROOM POPUP HANDLER
 const joinButton = document.getElementById("join");
@@ -237,29 +210,6 @@ joinRoomButton.addEventListener("click", async () => {
   }
 });
 
-// Capture User Video and Add to Room
-async function captureUserVideo(roomId) {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-    // Create video element for the participant
-    const videoElement = document.createElement("video");
-    videoElement.srcObject = stream;
-    videoElement.autoplay = true;
-    videoElement.id = `participantVideo_${roomId}`;
-    videoElement.classList.add("participantVideo");
-
-    // Append the participant video element
-    const displayVideoCalls = document.getElementById("displayvideocalls");
-    const participantsDiv = document.createElement("div");
-    participantsDiv.classList.add("individualsVideo");
-    participantsDiv.appendChild(videoElement);
-    displayVideoCalls.appendChild(participantsDiv);
-  } catch (error) {
-    console.error("Error accessing the camera: ", error);
-  }
-}
-
 // 📌 Utility Function: Copy to Clipboard
 function copyToClipboard(text) {
   navigator.clipboard
@@ -332,23 +282,6 @@ async function createRoom() {
     console.error("Error creating room:", error);
   }
 }
-
-// // Handle new participant joining
-// socket.on("new-participant", ({ peerId }) => {
-//   const peerConnection = createPeerConnection(peerId);
-//   peers[peerId] = peerConnection;
-
-//   // Add local tracks to the connection
-//   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
-
-//   // Create and send offer
-//   peerConnection.createOffer()
-//     .then((offer) => {
-//       peerConnection.setLocalDescription(offer);
-//       socket.emit("offer", { peerId, offer });
-//     })
-//     .catch((error) => console.error("Error creating offer:", error));
-// });
 
 // Handle incoming offer
 socket.on("offer", async ({ from, offer }) => {
