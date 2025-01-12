@@ -60,15 +60,21 @@ function updateUIAfterRoomCreation(roomId) {
 
   // Enable copying Room ID
   document.getElementById("copyRoomId").addEventListener("click", () => {
-    navigator.clipboard
-      .writeText(roomId)
-      .then(() => {
-        alert("Room ID copied to clipboard!");
-      })
-      .catch((err) => {
-        console.error("Error copying text: ", err);
-      });
-  });
+            navigator.clipboard.writeText(roomId).then(() => {
+              // Toast-style notification
+              const copyMessage = document.createElement("div");
+              copyMessage.textContent = "Room ID copied to clipboard!";
+              copyMessage.style.position = "fixed";
+              copyMessage.style.bottom = "20px";
+              copyMessage.style.right = "20px";
+              copyMessage.style.backgroundColor = "#4CAF50";
+              copyMessage.style.color = "#fff";
+              copyMessage.style.padding = "10px";
+              copyMessage.style.borderRadius = "5px";
+              document.body.appendChild(copyMessage);
+              setTimeout(() => copyMessage.remove(), 3000);
+            });
+          });
 
   // Clear and hide popup
   createRoomPopup.style.display = "none";
