@@ -1,8 +1,8 @@
 const express = require('express');
-const { Pool } = require('pg'); // PostgreSQL library
+const { Pool } = require('pg');
 const bodyParser = require('body-parser');
-const { joinRoom } = require('./joinRoomHandler');
 const path = require('path');
+const { joinRoom } = require('./joinRoomHandler');
 const db = require('./db');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,34 +10,25 @@ const port = process.env.PORT || 3000;
 const { Server } = require("socket.io");
 const http = require("http");
 
-const server = http.createServer(app); // Wrap express app with HTTP server
-// Adjust to your client domain if needed
+const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", 
-    methods: ["GET", "POST"]
-  }
-}); // Attach Socket.IO to HTTP server
-
-app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
-
-// Middleware to parse JSON bodies
-app.use(express.json());
-app.use(express.static('public'));
-app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self' blob:");
-    next();
-  });
-
-// PostgreSQL connection setup using connection string
-const pool = new Pool({
-  connectionString: 'postgresql://postgres.pezdqmellmcmewcvssbv:8594@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
-  ssl: {
-    rejectUnauthorized: false // Necessary for Render SSL connection
-  }
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
-// Test the database connection
+app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
+app.use(express.json());
+app.use(express.static('public'));
+
+// PostgreSQL connection
+const pool = new Pool({
+  connectionString: 'postgresql://postgres.pezdqmellmcmewcvssbv:8594@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
+  ssl: { rejectUnauthorized: false },
+});
+
+// Test DB connection
 pool.connect()
   .then(() => console.log('Connected to PostgreSQL database'))
   .catch(err => {
@@ -45,13 +36,9 @@ pool.connect()
     process.exit(1);
   });
 
-// POST request to create a room
+// Routes for room creation and joining
 app.post('/create_room', async (req, res) => {
-  // Support both JSON body and query parameters
-  const { room_id, room_name, admin_name } = req.body.room_id
-    ? req.body
-    : req.query;
-
+  const { room_id, room_name, admin_name } = req.body.room_id ? req.body : req.query;
   if (!room_id || !room_name || !admin_name) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -68,36 +55,35 @@ app.post('/create_room', async (req, res) => {
   }
 });
 
-// POST request to join a room
 app.post('/join_room', joinRoom);
 
-// In-memory storage for real-time performance
+// In-memory room storage
 const rooms = {};
 const users = {};
 
-// Load rooms from database on startup
+// Load rooms from DB at startup
 async function loadRoomsFromDatabase() {
-  const dbRooms = await db.getAllRooms(); // Fetch from database
-  dbRooms.forEach((room) => {
-    rooms[room.room_id] = { 
-      room_name: room.room_name, 
-      admin_name: room.admin_name, 
-      participants: room.participants || [] // Use JSON array directly
+  const dbRooms = await db.getAllRooms();
+  dbRooms.forEach(room => {
+    rooms[room.room_id] = {
+      room_name: room.room_name,
+      admin_name: room.admin_name,
+      participants: room.participants || [],
     };
   });
 }
 
-// Socket.IO connections
+// WebRTC signaling with Socket.IO
 io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
+  console.log("User connected:", socket.id);
 
+  // Create a new room
   socket.on("create_room", async ({ room_id, room_name, admin_name }) => {
     if (rooms[room_id]) {
       socket.emit("room_created", { success: false, error: "Room already exists." });
       return;
     }
 
-    // Add to database and memory
     await db.createRoom({ room_id, room_name, admin_name, participants: admin_name });
     rooms[room_id] = { room_name, admin_name, participants: [admin_name] };
     users[socket.id] = { room_id, participant_name: admin_name };
@@ -106,6 +92,7 @@ io.on("connection", (socket) => {
     socket.emit("room_created", { success: true, room_id, room_name, admin_name });
   });
 
+  // Join an existing room
   socket.on("join_room", async ({ room_id, participant_name }) => {
     let room = rooms[room_id];
 
@@ -115,11 +102,10 @@ io.on("connection", (socket) => {
         socket.emit("room_joined", { success: false, error: "Room does not exist." });
         return;
       }
-      // Add room to memory
-      rooms[room_id] = { 
-        room_name: dbRoom.room_name, 
-        admin_name: dbRoom.admin_name, 
-        participants: dbRoom.participants.split(",") 
+      rooms[room_id] = {
+        room_name: dbRoom.room_name,
+        admin_name: dbRoom.admin_name,
+        participants: dbRoom.participants.split(","),
       };
       room = rooms[room_id];
     }
@@ -133,6 +119,23 @@ io.on("connection", (socket) => {
     socket.to(room_id).emit("room_update", { participants: room.participants });
   });
 
+  // WebRTC signaling events
+  socket.on("offer", ({ sdp, room_id }) => {
+    console.log("Offer received:", { sdp, room_id });
+    socket.to(room_id).emit("offer", { sdp, from: socket.id });
+  });
+
+  socket.on("answer", ({ sdp, room_id }) => {
+    console.log("Answer received:", { sdp, room_id });
+    socket.to(room_id).emit("answer", { sdp, from: socket.id });
+  });
+
+  socket.on("ice-candidate", ({ candidate, room_id }) => {
+    console.log("ICE candidate received:", { candidate, room_id });
+    socket.to(room_id).emit("ice-candidate", { candidate, from: socket.id });
+  });
+
+  // Handle disconnection
   socket.on("disconnect", async () => {
     const user = users[socket.id];
     if (!user) return;
@@ -141,13 +144,12 @@ io.on("connection", (socket) => {
     const room = rooms[room_id];
     if (!room) return;
 
-    // Update participants in memory and database
-    room.participants = room.participants.filter((name) => name !== participant_name);
+    room.participants = room.participants.filter(name => name !== participant_name);
     await db.updateParticipants(room_id, room.participants);
     delete users[socket.id];
 
     if (room.participants.length === 0) {
-      await db.deleteRoom(room_id); // Clean up empty room
+      await db.deleteRoom(room_id);
       delete rooms[room_id];
     }
 
@@ -160,5 +162,3 @@ server.listen(port, async () => {
   await loadRoomsFromDatabase();
   console.log(`Server running on http://localhost:${port}`);
 });
-// Start the server
-
