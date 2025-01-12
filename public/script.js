@@ -104,7 +104,7 @@ closePopupButton.addEventListener("click", () => {
 });
 
 // Join Room
-async function joinRoom(roomId) {
+async function joinRoom(roomId, participantName) {
   await captureLocalVideo();
   socket.emit("join_room", { room_id: roomId, participant_name: participantName });
 
