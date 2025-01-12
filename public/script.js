@@ -106,7 +106,7 @@ closePopupButton.addEventListener("click", () => {
 // Join Room
 async function joinRoom(roomId) {
   await captureLocalVideo();
-  socket.emit("join_room", { roomId });
+  socket.emit("join_room", { room_id: roomId, participant_name: participantName });
 
   socket.on("participants", (participants) => {
     participants.forEach((peerId) => {
@@ -124,91 +124,78 @@ async function joinRoom(roomId) {
   });
 }
 
-// Handle Room Joining
+// Handle join room button
 joinRoomButton.addEventListener("click", async () => {
   const roomId = joinRoomIdInput.value.trim();
 
-  // Validation: Check if roomId is empty
+  // Validation
   if (!roomId) {
     joinErrorText.textContent = "Please enter a Room ID.";
     joinErrorText.style.display = "block";
     return;
   }
-  const participantName = generateRandomName();
+
+  const participantName = generateRandomName(); // Ensure this function is implemented
+  joinErrorText.style.display = "none"; // Clear any previous error message
+
   try {
     const response = await fetch("https://watch-togetherexpress.onrender.com/join_room", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        room_id: roomId,
-        participant_name: participantName,
-      }),
+      body: JSON.stringify({ room_id: roomId, participant_name: participantName }),
     });
 
-    // Validate if the response is OK
-    if (!response.ok) {
-      console.error(`HTTP error! status: ${response.status}`);
-      throw new Error(`Failed to join room: ${response.status}`);
-    }
-
-    // Parse JSON response
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
-    console.log("Parsed Response:", data, data.status);
 
     if (data.message === "Joined room successfully") {
-
-      // Notify others via Socket.IO
       socket.emit("join_room", { room_id: roomId, participant_name: participantName });
-      
+
+      // Listen for room_joined event
       socket.on("room_joined", (serverResponse) => {
-        if (serverResponse.success) { 
-          // Replace Create/Join buttons with the Room ID display and copy icon
+        if (serverResponse.success) {
           const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
           createJoinBtnDiv.innerHTML = `
             <span id="roomIdDisplay">Room ID: ${roomId}</span>
             <i class="fa-solid fa-copy" id="copyRoomId" style="cursor: pointer; color: yellow;"></i>
           `;
-    
-          // Listen for copy icon click to copy the room ID
-          document
-            .getElementById("copyRoomId")
-            .addEventListener("click", function () {
-              // Copy the room ID to the clipboard
-              navigator.clipboard
-                .writeText(roomId)
-                .then(function () {
-                  alert("Room ID copied to clipboard!");
-                })
-                .catch(function (err) {
-                  console.error("Error copying text: ", err);
-                });
+
+          document.getElementById("copyRoomId").addEventListener("click", () => {
+            navigator.clipboard.writeText(roomId).then(() => {
+              // Toast-style notification
+              const copyMessage = document.createElement("div");
+              copyMessage.textContent = "Room ID copied to clipboard!";
+              copyMessage.style.position = "fixed";
+              copyMessage.style.bottom = "20px";
+              copyMessage.style.right = "20px";
+              copyMessage.style.backgroundColor = "#4CAF50";
+              copyMessage.style.color = "#fff";
+              copyMessage.style.padding = "10px";
+              copyMessage.style.borderRadius = "5px";
+              document.body.appendChild(copyMessage);
+              setTimeout(() => copyMessage.remove(), 3000);
             });
-    
-          // Capture user's video and display
-          // Initialize WebRTC connections
-          joinRoom(roomId, participantName); // Capture participant's video
-          // captureUserVideo(roomId);
-    
-          // Close the join room popup
+          });
+
+          joinRoom(roomId, participantName); // Ensure implementation exists
           joinPopup.style.display = "none";
-          joinRoomIdInput.value = ""; // Clear the input field
+          joinRoomIdInput.value = "";
         } else {
           joinErrorText.textContent = serverResponse.error || "Failed to join the room.";
           joinErrorText.style.display = "block";
         }
-        });
+      });
     } else {
-      // Handle backend validation error
       joinErrorText.textContent = data.message || "Failed to join the room.";
       joinErrorText.style.display = "block";
     }
   } catch (error) {
-    // Handle fetch or JSON parsing errors
     console.error("Error joining room:", error);
     joinErrorText.textContent = "An error occurred. Please try again.";
     joinErrorText.style.display = "block";
   }
 });
+
 
 // 📌 Utility Function: Copy to Clipboard
 function copyToClipboard(text) {
@@ -271,6 +258,7 @@ async function createRoom() {
     });
     const data = await response.json();
     if (data.message === "Room created successfully") {
+      console.log(data);
       socket.emit("create_room", { room_id: roomId, room_name: roomName, admin_name: adminName });
       captureLocalVideo();
       updateUIAfterRoomCreation(roomId);
