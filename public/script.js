@@ -289,7 +289,7 @@ socket.on("offer", async ({ from, offer }) => {
   socket.emit("answer", { to: from, answer });
 });
 
-socket.on("User-connected", socket.id => {
+socket.on("User-connected", (socket.id) => {
   console.log("User connected with ID:", socket.id)
 })
 // Handle incoming answer
