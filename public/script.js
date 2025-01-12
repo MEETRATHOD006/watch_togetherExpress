@@ -45,74 +45,7 @@ createRoomButton.addEventListener("click", () => {
 });
 
 // Confirm Room Creation
-createRoomConfirmButton.addEventListener("click", async () => {
-  const roomName = document.getElementById("roomName").value.trim();
-  const adminName = document.getElementById("adminName").value.trim();
-
-  // Validate inputs
-  if (!roomName || !adminName) {
-    alert("Please enter both Room Name and Admin Name.");
-    return;
-  }
-
-  // Generate Room ID
-  const roomId = generateRoomId();
-
-  try {
-    // Send the data as JSON
-    const response = await fetch(
-      "https://watch-togetherexpress.onrender.com/create_room",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          room_id: roomId,
-          room_name: roomName,
-          admin_name: adminName,
-        }),
-      }
-    );
-
-    console.log("Request sent successfully");
-
-    const text = await response.text();
-    console.log("Raw Response:", text);
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (parseError) {
-      console.error("Failed to parse JSON:", parseError);
-      alert("Server error: Invalid response format.");
-      return;
-    }
-
-    // Check for success based on the actual response structure
-    if (data.message === "Room created successfully") {
-      // Notify other clients via Socket.IO
-      socket.emit("create_room", { room_id: roomId, room_name: roomName, admin_name: adminName });
-      socket.on("room_created", (serverResponse) => {
-        if (serverResponse.success) {
-          updateUIAfterRoomCreation(serverResponse.room_id);
-          captureLocalVideo();
-          alert("Room created successfully!");
-        } else {
-          alert("Failed to create room: " + serverResponse.error);
-        }
-      });
-      //updateUIAfterRoomCreation(data.data.room_id); // Use the room_id from the response
-      //alert("Room created successfully!");
-    } else {
-      console.error("Failed to create room:", data.message);
-      alert("Failed to create room: " + data.message);
-    }
-  } catch (error) {
-    console.error("Error creating room:", error);
-    alert("An error occurred while creating the room. Please try again.");
-  }
-});
+createRoomConfirmButton.addEventListener("click", createRoom);
 
 
 
@@ -120,12 +53,6 @@ createRoomConfirmButton.addEventListener("click", async () => {
  * Update UI after room creation
  */
 function updateUIAfterRoomCreation(roomId) {
-  // Update video calls display
-  // const displayVideoCalls = document.getElementById("displayvideocalls");
-  // const individualVideoDiv = document.createElement("div");
-  // individualVideoDiv.classList.add("individualsVideo");
-  // displayVideoCalls.appendChild(individualVideoDiv);
-
   // Replace buttons with room details
   const createJoinBtnDiv = document.querySelector(".creatJoinBtn");
   createJoinBtnDiv.innerHTML = `
@@ -203,7 +130,7 @@ closePopupButton.addEventListener("click", () => {
   joinRoomIdInput.value = "";
 });
 
-// Join room
+// Join Room
 async function joinRoom(roomId) {
   await captureLocalVideo();
   socket.emit("join-room", { roomId });
@@ -214,8 +141,11 @@ async function joinRoom(roomId) {
         const peerConnection = createPeerConnection(peerId);
         peers[peerId] = peerConnection;
 
-        // Add local tracks to connection
-        localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+        // Create and send offer
+        peerConnection.createOffer().then((offer) => {
+          peerConnection.setLocalDescription(offer);
+          socket.emit("offer", { to: peerId, offer });
+        });
       }
     });
   });
@@ -282,7 +212,8 @@ joinRoomButton.addEventListener("click", async () => {
             });
     
           // Capture user's video and display
-          joinRoom(roomId); // Capture participant's video
+          // Initialize WebRTC connections
+          joinRoom(roomId, participantName); // Capture participant's video
           // captureUserVideo(roomId);
     
           // Close the join room popup
@@ -337,83 +268,115 @@ function copyToClipboard(text) {
     .catch((err) => console.error("Error copying text:", err));
 }
 
-// Add remote video to the UI
-function addRemoteVideo(peerId, stream) {
+// Handle Remote Stream
+function displayRemoteVideo(stream) {
   const videoElement = document.createElement("video");
   videoElement.srcObject = stream;
   videoElement.autoplay = true;
-  videoElement.id = `remoteVideo_${peerId}`;
+  videoElement.classList.add("remoteVideo");
   const displayVideoCalls = document.getElementById("displayvideocalls");
   const individualVideoDiv = document.createElement("div");
   individualVideoDiv.classList.add("individualsVideo");
-  individualVideoDiv.appendChild(videoElement);
   displayVideoCalls.appendChild(individualVideoDiv);
+  individualVideoDiv.appendChild(videoElement);
 }
 
-// Handle new participant joining
-socket.on("new-participant", ({ peerId }) => {
-  const peerConnection = createPeerConnection(peerId);
-  peers[peerId] = peerConnection;
+// Create Peer Connection
+function createPeerConnection(peerId) {
+  const peerConnection = new RTCPeerConnection();
 
-  // Add local tracks to the connection
+  // Add local stream tracks to the connection
   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 
-  // Create and send offer
-  peerConnection.createOffer()
-    .then((offer) => {
-      peerConnection.setLocalDescription(offer);
-      socket.emit("offer", { peerId, offer });
-    })
-    .catch((error) => console.error("Error creating offer:", error));
-});
-
-// Handle offer received
-socket.on("offer", ({ peerId, offer }) => {
-  const peerConnection = createPeerConnection(peerId);
-  peers[peerId] = peerConnection;
-
-  // Set remote description and create answer
-  peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-    .then(() => peerConnection.createAnswer())
-    .then((answer) => {
-      peerConnection.setLocalDescription(answer);
-      socket.emit("answer", { peerId, answer });
-    })
-    .catch((error) => console.error("Error handling offer:", error));
-});
-
-// Handle answer received
-socket.on("answer", ({ peerId, answer }) => {
-  const peerConnection = peers[peerId];
-  peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-});
-
-// Handle ICE candidate received
-socket.on("ice-candidate", ({ peerId, candidate }) => {
-  const peerConnection = peers[peerId];
-  peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-    .catch((error) => console.error("Error adding ICE candidate:", error));
-});
-
-// Create and manage peer connection
-function createPeerConnection(peerId) {
-  const peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }], // Use Google's public STUN server
-  });
-
-  // Add event listeners
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate) {
-      socket.emit("ice-candidate", { peerId, candidate: event.candidate });
-    }
+  // Handle incoming tracks
+  peerConnection.ontrack = (event) => {
+    const [remoteStream] = event.streams;
+    displayRemoteVideo(remoteStream);
   };
 
-  peerConnection.ontrack = (event) => {
-    addRemoteVideo(peerId, event.streams[0]);
+  // Handle ICE candidates
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit("ice-candidate", { to: peerId, candidate: event.candidate });
+    }
   };
 
   return peerConnection;
 }
+// Create Room
+async function createRoom() {
+  const roomName = document.getElementById("roomName").value.trim();
+  const adminName = document.getElementById("adminName").value.trim();
+  if (!roomName || !adminName) {
+    alert("Please enter both Room Name and Admin Name.");
+    return;
+  }
+
+  const roomId = generateRoomId();
+  try {
+    const response = await fetch("https://watch-togetherexpress.onrender.com/create_room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room_id: roomId, room_name: roomName, admin_name: adminName }),
+    });
+    const data = await response.json();
+    if (data.message === "Room created successfully") {
+      socket.emit("create_room", { room_id: roomId });
+      captureLocalVideo();
+      updateUIAfterRoomCreation(roomId);
+      alert("Room created successfully!");
+    } else {
+      alert("Failed to create room: " + data.message);
+    }
+  } catch (error) {
+    console.error("Error creating room:", error);
+  }
+}
+
+// // Handle new participant joining
+// socket.on("new-participant", ({ peerId }) => {
+//   const peerConnection = createPeerConnection(peerId);
+//   peers[peerId] = peerConnection;
+
+//   // Add local tracks to the connection
+//   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+
+//   // Create and send offer
+//   peerConnection.createOffer()
+//     .then((offer) => {
+//       peerConnection.setLocalDescription(offer);
+//       socket.emit("offer", { peerId, offer });
+//     })
+//     .catch((error) => console.error("Error creating offer:", error));
+// });
+
+// Handle incoming offer
+socket.on("offer", async ({ from, offer }) => {
+  const peerConnection = createPeerConnection(from);
+  peers[from] = peerConnection;
+
+  peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  peerConnection.setLocalDescription(answer);
+
+  socket.emit("answer", { to: from, answer });
+});
+
+// Handle incoming answer
+socket.on("answer", ({ from, answer }) => {
+  const peerConnection = peers[from];
+  if (peerConnection) {
+    peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  }
+});
+
+// Handle incoming ICE candidate
+socket.on("ice-candidate", ({ from, candidate }) => {
+  const peerConnection = peers[from];
+  if (peerConnection) {
+    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+});
 
 // 📌 Generate Random Room ID
 function generateRoomId() {
