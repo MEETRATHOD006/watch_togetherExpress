@@ -321,7 +321,7 @@ async function createRoom() {
     });
     const data = await response.json();
     if (data.message === "Room created successfully") {
-      socket.emit("create_room", { room_id: roomId });
+      socket.emit("create_room", { room_id: roomId, room_name: roomName, admin_name: adminName });
       captureLocalVideo();
       updateUIAfterRoomCreation(roomId);
       alert("Room created successfully!");
