@@ -1,5 +1,6 @@
 // Import Socket.IO client
 const socket = io("https://watch-togetherexpress.onrender.com"); // Update the URL as per your server
+const peer = new Peer();
 
 const peers = {}; // Store peer connections
 let localStream; // Store the local video stream
@@ -109,25 +110,25 @@ closePopupButton.addEventListener("click", () => {
   joinRoomIdInput.value = "";
 });
 
-// Join Room
-async function joinRoom(roomId, participantName) {
-  await captureLocalVideo();
-  socket.emit("join_room", { room_id: roomId, participant_name: participantName });
+// 📌 Join Room
+async function joinRoom(roomId) {
+  if (!roomId) {
+    alert("Room ID is required to join.");
+    return;
+  }
 
-  socket.on("participants", (participants) => {
-    participants.forEach((peerId) => {
-      if (peerId !== socket.id) {
-        const peerConnection = createPeerConnection(peerId);
-        peers[peerId] = peerConnection;
+  try {
+    await captureLocalVideo();
+    socket.emit("join_room", { room_id: roomId, peer_id: peer.id });
 
-        // Create and send offer
-        peerConnection.createOffer().then((offer) => {
-          peerConnection.setLocalDescription(offer);
-          socket.emit("offer", { to: peerId, offer });
-        });
-      }
+    socket.on("user-connected", (peerId) => {
+      console.log(`User connected: ${peerId}`);
+      connectToNewUser(peerId, localStream);
     });
-  });
+  } catch (error) {
+    console.error("Error joining room:", error);
+    alert("Failed to join room.");
+  }
 }
 
 // Handle join room button
@@ -223,6 +224,35 @@ function displayRemoteVideo(stream) {
   displayVideoCalls.appendChild(individualVideoDiv);
   individualVideoDiv.appendChild(videoElement);
 }
+
+function connectToNewUser(peerId, stream) {
+  const call = peer.call(peerId, stream);
+
+  call.on("stream", (remoteStream) => {
+    displayRemoteVideo(remoteStream);
+  });
+
+  call.on("close", () => {
+    console.log(`Call with ${peerId} closed.`);
+  });
+
+  peers[peerId] = call;
+}
+
+// 📌 Handle Incoming Calls
+peer.on("call", (call) => {
+  call.answer(localStream);
+
+  call.on("stream", (remoteStream) => {
+    displayRemoteVideo(remoteStream);
+  });
+});
+
+// 📌 Peer Disconnected
+socket.on("user-disconnected", (peerId) => {
+  console.log(`User disconnected: ${peerId}`);
+  if (peers[peerId]) peers[peerId].close();
+});
 
 // Create Peer Connection
 function createPeerConnection(peerId) {
